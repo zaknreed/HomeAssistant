@@ -1,0 +1,99 @@
+blueprint:
+  name: State aware scene toggle
+  description: >
+    A robust toggle for two scenes (e.g., LED on/off) for devices that also can be controlled manually.
+    Possible to use more states if needed. In this example I will also be using an 'idle' state to reset the button after 6 hours of no use.
+    Automation blueprint for changing state to 'idle' provided separately. Including example on how it can be implemented in dashboard.
+    
+    **Logic:**
+    - This script maintains its own state using either `input_text` OR an 'input_boolean' (toggle) helper, depending on the amounts of states.
+    - By default, it assumes the light is ON and will turn it OFF.
+    - **However**, if the OFF scene was the most recent action within a specified time window, it will turn the light ON.
+    - This prevents accidentally turning a physically switched-off light back on. Meaning the second click will always turn it on.
+    
+    **Required Setup:** You must first create either an `input_text` OR `Input Boolean` helper in Settings > Devices & Services > Helpers.
+
+  domain: script
+  input:
+    scene_on:
+      name: "On Scene"
+      description: "The scene to turn the device ON (e.g., scene.led_strip_on)."
+      selector:
+        entity:
+          domain: scene
+    scene_off:
+      name: "Off Scene"
+      description: "The scene to turn the device OFF (e.g., scene.led_strip_off)."
+      selector:
+        entity:
+          domain: scene
+    state_helper:
+      name: "State Helper"
+      description: "The Input Boolean helper used to track the device's state (e.g., input_boolean.led_strip_state)."
+      selector:
+        entity:
+          domain: input_boolean
+    timeout_hours:
+      name: "Recent Action Timeout"
+      description: "If the 'Off' scene was triggered within this many hours, the next press will turn it 'On'."
+      default: 6
+      selector:
+        number:
+          min: 0.5
+          max: 24
+          step: 0.5
+          unit_of_measurement: hours
+    transition_time:
+      name: Transition Time
+      description: The time in seconds for potential transitioning between scenes.
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.5
+          unit_of_measurement: seconds
+
+mode: single
+
+variables:
+  scene_on_id: !input 'scene_on'
+  scene_off_id: !input 'scene_off'
+  state_helper_id: !input 'state_helper'
+  timeout_seconds: "{{ !input 'timeout_hours' * 3600 }}"
+  
+sequence:
+  - choose:
+      # CONDITION: Check if the 'Off' scene was the most recent action AND it happened within the timeout window.
+      # This means we are confident the light is OFF, so the next action should be to turn it ON.
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{
+                (as_timestamp(states[scene_off_id].last_changed) > as_timestamp(states[scene_on_id].last_changed)) and 
+                (as_timestamp(now()) - as_timestamp(states[scene_off_id].last_changed) < timeout_seconds)
+              }}
+        sequence:
+          - service: scene.turn_on
+            target:
+              entity_id: !input 'scene_on'
+            data:
+              transition: !input 'transition_time'
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input 'state_helper'
+            data:
+              value: 'on'
+
+    # DEFAULT: In all other cases, we assume the light is ON and the next action is to turn it OFF.
+    default:
+      - service: scene.turn_on
+        target:
+          entity_id: !input 'scene_off'
+        data:
+          transition: !input 'transition_time'
+      - service: input_boolean.turn_off
+        target:
+          entity_id: !input 'state_helper'
+        data:
+          value: 'on'
