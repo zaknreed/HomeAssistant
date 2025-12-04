@@ -10,7 +10,7 @@ blueprint:
     - Stores the timestamp of the last OFF action in an input_text helper.
 
     **Required setup:** 
-    You must create an input_boolean (toggle), an input_text (last_off_timestamp) and select your scenes.
+    You must create an input_boolean (state helper), an input_text (last off timestamp) and select your scenes.
   domain: script
   input:
     scene_on:
@@ -24,13 +24,13 @@ blueprint:
         entity:
           domain: scene
     state_helper:
-      name: "State Helper (input_boolean)"
+      name: "State Helper"
       description: "Input boolean used to store the perceived state (optional but recommended)."
       selector:
         entity:
           domain: input_boolean
     last_off_helper:
-      name: "Last Off Timestamp (input_text)"
+      name: "Last Off Timestamp"
       description: "An input_text helper used to store the ISO timestamp when the OFF scene was last triggered."
       selector:
         entity:
