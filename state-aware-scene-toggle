@@ -1,16 +1,16 @@
 blueprint:
   name: State aware scene toggle
   description: >
-    A robust toggle for two scenes (e.g., LED on/off) for devices that can be controlled manually.
-    In this example I will reset the state after 6 hours of no use with the help of a timestamp helper.
+    Toggle scenes (e.g., LED on/off) for devices that can also be controlled physically.
 
     **Logic:**
     - This script maintains its own state using an `input_boolean` helper.
     - By default, it assumes the light is ON and will turn it OFF.
-    - Stores the timestamp of the last OFF action in an input_text helper.
+    - Stores the timestamp of the last OFF action in an input_text helper kept vaild for x hours.
 
     **Required setup:** 
-    You must create an input_boolean (state helper), an input_text (last off timestamp) and select your scenes.
+    You must first create an input_boolean (state helper) and an input_text (last off timestamp) helper.
+
   domain: script
   input:
     scene_on:
@@ -44,6 +44,16 @@ blueprint:
           max: 24
           step: 0.5
           unit_of_measurement: hours
+    transition_time:
+      name: Transition Time
+      description: The time in seconds for transitioning between scenes.
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.5
+          unit_of_measurement: seconds
 
 mode: single
 
@@ -57,7 +67,6 @@ variables:
 
 sequence:
   # If we have a recorded last-off timestamp and it is within the timeout window,
-  # assume device is OFF and turn it ON.
   - choose:
       - conditions:
           - condition: template
@@ -68,6 +77,8 @@ sequence:
           - service: scene.turn_on
             target:
               entity_id: !input 'scene_on'
+            data:
+              transition: !input 'transition_time'
           - service: input_boolean.turn_on
             target:
               entity_id: !input 'state_helper'
