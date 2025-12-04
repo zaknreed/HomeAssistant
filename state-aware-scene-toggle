@@ -52,7 +52,8 @@ variables:
   scene_off_id: !input 'scene_off'
   state_helper_id: !input 'state_helper'
   last_off_helper_id: !input 'last_off_helper'
-  timeout_seconds: "{{ !input 'timeout_hours' * 3600 }}"
+  timeout_hours_input: !input 'timeout_hours'
+  timeout_seconds: "{{ timeout_hours_input | float * 3600 }}"
 
 sequence:
   # If we have a recorded last-off timestamp and it is within the timeout window,
